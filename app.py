@@ -48,26 +48,26 @@ t1,t2,t3,t4,t5=st.tabs(["① L HOUSE 생산현황","② 생산량·원가 분석
 with t1:
     st.header("01. L HOUSE 생산현황 진단")
     intro(
-        "SK바이오사이언스는 2026년 주요 계획으로 **L HOUSE 생산수율 개선 및 cGMP Upgrade**를 제시하고 있습니다. "
-        "또한 2025년 L HOUSE G2+를 구축해 **PCV21의 글로벌 상업생산 기반**을 확대하고, "
-        "R&D/제조 Infra Upgrade에 **390억원**을 투자했습니다. "
-        "이러한 생산기반 확대 과정에서는 생산능력 확보뿐 아니라 **실제 생산량과 수율 변화가 제조원가에 어떤 영향을 미치는지** "
+        "SK바이오사이언스는 2026년 주요 계획으로 L HOUSE 생산수율 개선 및 cGMP Upgrade를 제시하고 있습니다. "
+        "또한 2025년 L HOUSE G2+를 구축해 PCV21의 글로벌 상업생산 기반을 확대하고, "
+        "R&D/제조 Infra Upgrade에 390억원을 투자했습니다. "
+        "이러한 생산기반 확대 과정에서는 생산능력 확보뿐 아니라 실제 생산량과 수율 변화가 제조원가에 어떤 영향을 미치는지 "
         "관리회계 관점에서 점검할 필요가 있다고 보았습니다. "
         "이에 공개된 L HOUSE 생산능력·생산실적을 출발점으로 생산량과 수율 변화에 따른 원가구조를 분석합니다.\n\n"
         "※ PCV21의 실제 생산계획·수율·제조원가는 공개되지 않았으므로, 본 프로그램은 PCV21의 실제 원가를 추정하지 않고 "
         "L HOUSE 전체의 생산량·수율 변화에 따른 원가구조를 시뮬레이션합니다.",
-        "먼저 2023~2025년 생산능력·생산실적·가동률을 비교합니다. 이후 생산량 변화는 **가동률과 고정비 배부 변화**, "
-        "수율 변화는 **정상품 환산 생산량 변화**로 나누어 제조원가에 미치는 영향을 분석합니다.",
+        "먼저 2023~2025년 생산능력·생산실적·가동률을 비교합니다. 이후 생산량 변화는 가동률과 고정비 배부 변화, "
+        "수율 변화는 정상품 환산 생산량 변화로 나누어 제조원가에 미치는 영향을 분석합니다.",
         "L HOUSE의 생산능력은 481→575 Batch로 증가한 반면 생산실적은 269→201 Batch로 감소했습니다. "
         "이를 생산 비효율로 단정하지 않고, 회사가 제시한 생산수율 개선 방향과 연결해 생산량·수율 변화가 제조원가 구조에 "
         "어떤 영향을 줄 수 있는지 다음 탭에서 시나리오로 확인합니다."
     )
     st.info(
-        "📌 **사업 맥락과 분석 구조**\n\n"
-        "**L HOUSE 생산기반 확대·PCV21 상업생산 기반 구축** → "
-        "**생산량 변화: 가동률·고정비 배부 변화** + "
-        "**수율 변화: 정상품 환산 생산량 변화** → "
-        "**정상품 환산 기준 제조원가 변화**\n\n"
+        "📌 사업 맥락과 분석 구조\n\n"
+        "L HOUSE 생산기반 확대·PCV21 상업생산 기반 구축 → "
+        "생산량 변화: 가동률·고정비 배부 변화 + "
+        "수율 변화: 정상품 환산 생산량 변화 → "
+        "정상품 환산 기준 제조원가 변화\n\n"
         "본 분석은 PCV21의 실제 생산계획이나 원가를 예측하는 것이 아니라, "
         "회사가 공개한 생산성 개선 방향을 관리회계 관점의 시나리오로 연결한 것입니다."
     )
@@ -107,14 +107,14 @@ with t2:
     h.subheader("원가 가정 입력")
     with helpcol:
         with st.popover("❓ 어떻게 사용하나요?"):
-            st.markdown("**고정제조원가**는 생산량과 직접 비례하지 않는 비용입니다. `고정비÷생산량`으로 Batch당 고정비를 계산합니다.\n\n**Batch당 변동비**는 Batch 수에 따라 증가한다고 가정합니다. 실제 회사 원가가 아닌 사용자 가정값입니다.")
+            st.markdown("고정제조원가는 생산량과 직접 비례하지 않는 비용입니다. `고정비÷생산량`으로 Batch당 고정비를 계산합니다.\n\nBatch당 변동비는 Batch 수에 따라 증가한다고 가정합니다. 실제 회사 원가가 아닌 사용자 가정값입니다.")
     c1,c2=st.columns(2)
     with c1: st.session_state.fixed=st.number_input("연간 고정제조원가 (억원)",0.0,value=float(st.session_state.fixed),step=10.0)
     with c2: st.session_state.variable=st.number_input("Batch당 변동비 (억원/Batch)",0.0,value=float(st.session_state.variable),step=0.1)
     h,helpcol=st.columns([5,1]); h.subheader("생산량 시나리오")
     with helpcol:
         with st.popover("❓ 어떻게 사용하나요?"):
-            st.markdown("2025년 공시 생산실적 **201 Batch**를 기준으로 What-if 생산량을 선택합니다. 선택값은 회사의 실제 계획이나 전망치가 아닙니다.")
+            st.markdown("2025년 공시 생산실적 201 Batch를 기준으로 What-if 생산량을 선택합니다. 선택값은 회사의 실제 계획이나 전망치가 아닙니다.")
     st.session_state.scenario_prod=st.slider("시나리오 생산량 (Batch)",BASE,CAP,int(st.session_state.scenario_prod))
     f,v,p=st.session_state.fixed,st.session_state.variable,st.session_state.scenario_prod
     b0,s=mfg(BASE,f,v),mfg(p,f,v); red=(b0["unit"]-s["unit"])/b0["unit"]*100
@@ -225,9 +225,9 @@ with t5:
     생산량 <b>{BASE} → {st.session_state.scenario_prod} Batch</b>, 수율 <b>{st.session_state.base_yield:.0f}% → {st.session_state.scenario_yield:.0f}%</b> 가정 시 정상품 환산 기준 제조원가는 <b>{fb["unit"]:.2f} → {fs["unit"]:.2f}억원</b>으로 약 <b>{red:.1f}% 감소</b>합니다.</div>""",unsafe_allow_html=True)
     st.subheader("그래서 무엇을 관리해야 하나요?")
     a,b,c=st.columns(3)
-    a.markdown("### ① 생산량\n**얼마나 생산했는가?**\n\n`계획 생산량 vs 실제 생산량`")
-    b.markdown("### ② 수율\n**생산한 것 중 얼마나 확보했는가?**\n\n`목표 수율 vs 실제 수율`")
-    c.markdown("### ③ 제조원가\n**결과적으로 얼마에 생산했는가?**\n\n`목표 제조원가 vs 실제 제조원가`")
+    a.markdown("### ① 생산량\n얼마나 생산했는가?\n\n`계획 생산량 vs 실제 생산량`")
+    b.markdown("### ② 수율\n생산한 것 중 얼마나 확보했는가?\n\n`목표 수율 vs 실제 수율`")
+    c.markdown("### ③ 제조원가\n결과적으로 얼마에 생산했는가?\n\n`목표 제조원가 vs 실제 제조원가`")
     st.subheader("관리회계 Cycle")
     st.markdown("""<div class="insight" style="text-align:center;"><b style="font-size:20px">PLAN → ACTUAL → VARIANCE → CAUSE → NEXT PLAN</b><br><br>
     <b>이번 프로그램</b><br>생산량·수율 시나리오 → 예상 제조원가 검토<br><br>↓ 실제 생산 ↓<br><br>
