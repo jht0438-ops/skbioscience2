@@ -179,7 +179,7 @@ with t4:
         for p in prods: mat.loc[f"{y}%",p]=ym(p,y,f,v)["unit"]
     left,right=st.columns([2,1])
     with left:
-        st.dataframe(mat.style.format("{:.2f}").background_gradient(axis=None),use_container_width=True)
+        st.dataframe(mat.style.format("{:.2f}"),use_container_width=True)
         st.caption("단위: 억원 / 정상품 환산 Batch")
     with right:
         st.markdown("""<div class="interpret"><b>💡 매트릭스 해석</b><br><br>
