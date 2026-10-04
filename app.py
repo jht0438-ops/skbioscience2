@@ -19,7 +19,7 @@ DATA=pd.DataFrame({"연도":[2023,2024,2025],"생산능력":[481,572,575],"생�
 DATA["미활용 생산능력"]=DATA["생산능력"]-DATA["생산실적"]
 CAP,BASE,BASE_UTIL=575,201,35.0
 
-defaults={"fixed":300.0,"variable":1.0,"scenario_prod":300,"yield_prod":201,"base_yield":80.0,"scenario_yield":90.0,"target":2.30}
+defaults={"fixed":300.0,"variable":1.0,"scenario_prod":300,"yield_prod":201,"base_yield":80.0,"scenario_yield":90.0}
 for k,v in defaults.items():
     if k not in st.session_state: st.session_state[k]=v
 
@@ -186,23 +186,11 @@ with t4:
         <b>→ 가로:</b> 생산량 증가의 고정비 분산 효과<br><br>
         <b>↓ 세로:</b> 수율 개선의 정상품 환산 생산량 증가 효과<br><br>
         <b>↘ 오른쪽 아래:</b> 두 변화가 동시에 발생하는 시나리오</div>""",unsafe_allow_html=True)
-    st.subheader("목표원가 분석")
-    with st.popover("❓ 어떻게 사용하나요?"):
-        st.markdown("목표 정상품 환산 기준 제조원가를 입력하면 매트릭스에서 목표 이하를 달성하는 생산량·수율 조합을 찾습니다. 생산목표를 지시하는 기능이 아니라 가정된 원가구조에서 조합을 탐색하는 기능입니다.")
-    st.session_state.target=st.number_input("목표 정상품 환산 기준 제조원가 (억원)",0.01,value=float(st.session_state.target),step=0.05)
-    feasible=[]
-    for y in yields:
-        for p in prods:
-            cost=ym(p,y,f,v)["unit"]
-            if cost<=st.session_state.target: feasible.append({"생산량":p,"수율":y,"예상 정상품 환산 기준 제조원가":cost})
-    if feasible:
-        st.dataframe(pd.DataFrame(feasible).style.format({"수율":"{:.0f}%","예상 정상품 환산 기준 제조원가":"{:.2f}억원"}),use_container_width=True,hide_index=True)
-    else: st.warning("현재 시나리오 범위에서는 목표원가를 충족하는 조합이 없습니다.")
 
 with t5:
     st.header("05. Management Insight")
     intro("계산 결과를 실제 관리회계 의사결정으로 연결하기 위해 어떤 지표를 관리하고 계획과 실제가 달라질 때 무엇을 확인할지 정리합니다.",
-          "앞선 탭의 생산능력·생산량·수율·목표원가 분석을 연결하여 현재와 목표 상태, 핵심 관리지표와 원가관리 프로세스를 정리합니다.",
+          "앞선 탭의 생산능력·생산량·수율·제조원가 분석을 연결하여 현재와 목표 상태, 핵심 관리지표와 원가관리 프로세스를 정리합니다.",
           "생산량·수율·제조원가를 연결하고 실제 실적이 목표와 다르면 생산량→수율→세부 원가 순으로 점검하는 체계를 제시합니다.")
     fb=ym(BASE,st.session_state.base_yield,st.session_state.fixed,st.session_state.variable)
     fs=ym(st.session_state.scenario_prod,st.session_state.scenario_yield,st.session_state.fixed,st.session_state.variable)
@@ -221,7 +209,7 @@ with t5:
     c.markdown("### ③ 제조원가\n**결과적으로 얼마에 생산했는가?**\n\n`목표 제조원가 vs 실제 제조원가`")
     st.subheader("관리회계 Cycle")
     st.markdown("""<div class="insight" style="text-align:center;"><b style="font-size:20px">PLAN → ACTUAL → VARIANCE → CAUSE → NEXT PLAN</b><br><br>
-    <b>이번 프로그램</b><br>생산량·수율 시나리오 → 예상 제조원가 → 목표원가 검토<br><br>↓ 실제 생산 ↓<br><br>
+    <b>이번 프로그램</b><br>생산량·수율 시나리오 → 예상 제조원가 검토<br><br>↓ 실제 생산 ↓<br><br>
     <b>기존 원가차이 분석 프로그램</b><br>계획원가 vs 실제원가 → 차이 분석 → 원인 파악<br><br>↓<br><br><b>다음 생산계획에 반영</b></div>""",unsafe_allow_html=True)
     st.subheader("최종 Management Insight")
     st.markdown("""<div class="insight">제조원가 관리는 단순히 비용을 줄이는 것이 아니라 <b>생산계획과 생산성과를 원가 데이터로 연결하는 과정</b>입니다.<br><br>
