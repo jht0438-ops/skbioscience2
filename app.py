@@ -12,6 +12,21 @@ st.markdown("""
 .warn{background:#fff8e8;border:1px solid #f2d28b;border-radius:10px;padding:16px;margin-top:14px}
 .insight{background:#f3f8ff;border:1px solid #cddff5;border-radius:12px;padding:20px;line-height:1.8}
 div[data-testid="stMetric"]{background:#fafafa;border:1px solid #eee;padding:14px;border-radius:10px}
+
+div[data-testid="stLinkButton"] a{
+    min-height:72px !important;
+    font-size:20px !important;
+    font-weight:800 !important;
+    border-radius:14px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    padding:16px 28px !important;
+}
+div[data-testid="stLinkButton"] a p{
+    font-size:20px !important;
+    font-weight:800 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -371,26 +386,31 @@ with t4:
         yield_word="감소" if yield_effect < 0 else "증가" if yield_effect > 0 else "변화 없음"
         total_word="감소" if total_effect < 0 else "증가" if total_effect > 0 else "변화 없음"
 
-        st.markdown(
-            f"""
-            <div class="interpret">
-                <b>💡 한눈에 보는 결과</b><br><br>
+        # HTML 문자열을 사용하지 않고 Streamlit 기본 컴포넌트로 구성하여
+        # <b>, <br> 태그가 화면에 그대로 노출되는 문제를 방지
+        with st.container(border=True):
+            st.markdown("### 💡 한눈에 보는 결과")
 
-                <b>생산량 변화 효과</b><br>
-                {base["unit"]:.2f} → {prod_only["unit"]:.2f}억원<br>
-                <b>{abs(prod_effect):.1f}% {prod_word}</b><br><br>
+            st.markdown("**생산량 변화 효과**")
+            st.metric(
+                "생산량 변경 후 정상품 환산 기준 제조원가",
+                f"{prod_only['unit']:.2f}억원",
+                f"{prod_effect:+.1f}% vs 기준 {base['unit']:.2f}억원"
+            )
 
-                <b>수율 변화 추가 효과</b><br>
-                {prod_only["unit"]:.2f} → {final["unit"]:.2f}억원<br>
-                <b>{abs(yield_effect):.1f}% {yield_word}</b><br><br>
+            st.markdown("**수율 변화 추가 효과**")
+            st.metric(
+                "실제 수율 반영 후 정상품 환산 기준 제조원가",
+                f"{final['unit']:.2f}억원",
+                f"{yield_effect:+.1f}% vs 생산량 변경 후 {prod_only['unit']:.2f}억원"
+            )
 
-                <b>최종 변화</b><br>
-                {base["unit"]:.2f} → {final["unit"]:.2f}억원<br>
-                <b>{abs(total_effect):.1f}% {total_word}</b>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+            st.markdown("**최종 변화**")
+            st.metric(
+                "기준 대비 최종 정상품 환산 기준 제조원가",
+                f"{final['unit']:.2f}억원",
+                f"{total_effect:+.1f}% vs 기준 {base['unit']:.2f}억원"
+            )
 
     # 3. 왜 움직였는지 원인 경로 설명
     st.subheader("③ 왜 이렇게 움직였는가?")
