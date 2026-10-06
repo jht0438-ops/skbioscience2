@@ -283,11 +283,11 @@ with t3:
     st.markdown('<div class="warn"><b>⚠ 분석 시 유의사항</b><br>실제 바이오 생산에서는 공정별 수율·투입량·품질검사·폐기·재작업 등이 영향을 미칩니다. 본 모델은 직관적 분석을 위한 단순화 모델입니다.</div>',unsafe_allow_html=True)
 
 with t4:
-    st.header("04. 생산량 × 수율 통합 시나리오")
+    st.header("04. 생산량 × 수율 변화가 원가에 미치는 영향")
     intro(
-        "생산량과 수율이 동시에 변할 때 정상품 환산 기준 제조원가가 어떻게 달라지는지 비교합니다.",
-        "2번 탭의 기준 생산량·시나리오 생산량·원가 입력값과 3번 탭의 기준 수율·실제 수율을 그대로 연동합니다.",
-        "사용자가 설정한 기준 조건과 시나리오 조건을 비교하여 생산량 및 수율 변화가 원가에 미치는 영향을 확인합니다."
+        "생산량과 수율이 변할 때 정상품 1 Batch를 확보하는 데 드는 제조원가가 어떻게 움직이는지 한눈에 확인합니다.",
+        "2번 탭의 기준·시나리오 생산량과 3번 탭의 기준·실제 수율을 결합해, 생산량 변화 효과와 수율 변화 효과를 순서대로 비교합니다.",
+        "이 탭은 생산량과 수율에 초점을 둔 What-if 분석입니다. 실제 제조원가는 재료가격·재료사용량·작업시간·임률 등 다른 요인의 영향도 받으므로, 마지막에서 원가차이 분석 프로그램으로 이어집니다."
     )
 
     bp,sp=st.session_state.base_prod,st.session_state.scenario_prod
@@ -298,51 +298,174 @@ with t4:
     prod_only=ym(sp,by,f,v)
     final=ym(sp,ay,f,v)
 
-    st.info("📌 기준 생산량은 2번 탭에서 사용자가 직접 설정한 값입니다. 2025년 실제 생산실적 201 Batch를 자동으로 기준값으로 사용하지 않습니다.")
+    prod_effect = pct(prod_only["unit"],base["unit"]) if base["unit"] else 0
+    yield_effect = pct(final["unit"],prod_only["unit"]) if prod_only["unit"] else 0
+    total_effect = pct(final["unit"],base["unit"]) if base["unit"] else 0
 
-    st.subheader("① 기준 조건 vs 사용자 시나리오")
-    comparison=pd.DataFrame({
-        "항목":["생산량","수율","정상품 환산 생산량","총 제조원가","정상품 환산 기준 제조원가","가동률"],
-        "기준 조건":[f"{bp} Batch",f"{by:.0f}%",f"{base['good']:.1f} Batch",f"{base['total']:.1f}억원",f"{base['unit']:.2f}억원",f"{bp/CAP*100:.1f}%"],
-        "사용자 시나리오":[f"{sp} Batch",f"{ay:.0f}%",f"{final['good']:.1f} Batch",f"{final['total']:.1f}억원",f"{final['unit']:.2f}억원",f"{sp/CAP*100:.1f}%"]
-    })
-    st.dataframe(comparison,use_container_width=True,hide_index=True)
+    st.info(
+        "📌 **이 탭에서 보는 핵심 질문**  \n"
+        "① 생산량이 바뀌면 고정비 배부 효과로 정상품 환산 기준 제조원가가 어떻게 변하는가?  \n"
+        "② 그 생산량에서 수율까지 바뀌면 정상품 확보량과 원가는 추가로 어떻게 변하는가?"
+    )
 
-    st.subheader("② 사용자 시나리오 적용 결과")
-    a,b,c,d=st.columns(4)
-    a.metric("실제 수율 기준 정상품 환산 생산량",f"{final['good']:.1f} Batch",f"{final['good']-base['good']:+.1f} Batch vs 기준")
-    b.metric("총 제조원가",f"{final['total']:.1f}억원",f"{pct(final['total'],base['total']):+.1f}% vs 기준")
-    c.metric("정상품 환산 기준 제조원가",f"{final['unit']:.2f}억원",f"{pct(final['unit'],base['unit']):+.1f}% vs 기준")
-    d.metric("가동률",f"{sp/CAP*100:.1f}%",f"{(sp-bp)/CAP*100:+.1f}%p vs 기준")
+    # 1. 입력 조건을 먼저 보여줘 사용자가 무엇을 비교하는지 명확히 함
+    st.subheader("① 무엇이 바뀌었는가?")
 
-    st.subheader("③ 생산량·수율 변화에 따른 원가 변화")
+    c1,c2=st.columns(2)
+    with c1:
+        st.markdown(
+            f"""<div class="interpret"><b>생산량 변화</b><br><br>
+            기준 생산량 <b>{bp} Batch</b><br>
+            ↓<br>
+            시나리오 생산량 <b>{sp} Batch</b><br><br>
+            변화: <b>{sp-bp:+} Batch</b>
+            </div>""",
+            unsafe_allow_html=True
+        )
+    with c2:
+        st.markdown(
+            f"""<div class="interpret"><b>수율 변화</b><br><br>
+            기준 수율 <b>{by:.0f}%</b><br>
+            ↓<br>
+            실제 수율 <b>{ay:.0f}%</b><br><br>
+            변화: <b>{ay-by:+.0f}%p</b>
+            </div>""",
+            unsafe_allow_html=True
+        )
+
+    # 2. 변화 경로를 가장 중요한 그래프로 표시
+    st.subheader("② 생산량과 수율이 바뀌면 원가는 어떻게 움직이는가?")
+
     stage=pd.DataFrame({
-        "단계":["기준 조건","생산량 시나리오 반영","실제 수율 반영"],
+        "단계":[
+            f"기준 조건\n{bp} Batch · 수율 {by:.0f}%",
+            f"생산량 변경\n{sp} Batch · 수율 {by:.0f}%",
+            f"수율까지 반영\n{sp} Batch · 수율 {ay:.0f}%"
+        ],
         "정상품 환산 기준 제조원가":[base["unit"],prod_only["unit"],final["unit"]]
     })
+
     left,right=st.columns([2,1])
     with left:
-        fig=px.bar(stage,x="단계",y="정상품 환산 기준 제조원가",text_auto=".2f")
-        fig.update_layout(xaxis_title="",yaxis_title="억원 / 정상품 환산 Batch")
+        fig=px.line(
+            stage,
+            x="단계",
+            y="정상품 환산 기준 제조원가",
+            markers=True,
+            text="정상품 환산 기준 제조원가"
+        )
+        fig.update_traces(texttemplate="%{text:.2f}억원",textposition="top center")
+        vals=[base["unit"],prod_only["unit"],final["unit"]]
+        ymin=min(vals); ymax=max(vals)
+        pad=max((ymax-ymin)*0.55, max(ymax,1)*0.08)
+        fig.update_yaxes(
+            range=[max(0,ymin-pad),ymax+pad],
+            title="억원 / 정상품 환산 Batch"
+        )
+        fig.update_xaxes(title="")
+        fig.update_layout(showlegend=False)
         st.plotly_chart(fig,use_container_width=True)
+
     with right:
-        st.markdown(f"""<div class="interpret"><b>💡 계산 흐름</b><br><br>
-        <b>기준 조건</b><br>{bp} Batch × 기준 수율 {by:.0f}% → {base['good']:.1f} 정상품 환산 Batch → <b>{base['unit']:.2f}억원</b><br><br>
-        <b>생산량 반영</b><br>{bp} → {sp} Batch → <b>{prod_only['unit']:.2f}억원</b><br><br>
-        <b>실제 수율 반영</b><br>{by:.0f}% → {ay:.0f}% → <b>{final['unit']:.2f}억원</b>
-        </div>""",unsafe_allow_html=True)
+        prod_word="감소" if prod_effect < 0 else "증가" if prod_effect > 0 else "변화 없음"
+        yield_word="감소" if yield_effect < 0 else "증가" if yield_effect > 0 else "변화 없음"
+        total_word="감소" if total_effect < 0 else "증가" if total_effect > 0 else "변화 없음"
 
-    st.caption("※ 단계별 분석은 변화 경로를 보여주기 위한 것이며 각 요인의 정확한 기여율 분해를 의미하지 않습니다.")
+        st.markdown(
+            f"""<div class="interpret"><b>💡 한눈에 보는 결과</b><br><br>
+            <b>생산량 변화 효과</b><br>
+            {base["unit"]:.2f} → {prod_only["unit"]:.2f}억원<br>
+            <b>{abs(prod_effect):.1f}% {prod_word}</b><br><br>
 
-    st.subheader("④ 생산량 × 수율 시나리오 매트릭스")
-    prods=sorted(set([bp,sp,201,250,300,350,400,450,500,575]))
-    yields=[70,75,80,85,90,95,100]
-    mat=pd.DataFrame(index=[f"{y}%" for y in yields],columns=prods,dtype=float)
-    for y in yields:
-        for p in prods:
-            mat.loc[f"{y}%",p]=ym(p,y,f,v)["unit"]
-    st.dataframe(mat.style.format("{:.2f}"),use_container_width=True)
-    st.caption("단위: 억원 / 정상품 환산 Batch")
+            <b>수율 변화 추가 효과</b><br>
+            {prod_only["unit"]:.2f} → {final["unit"]:.2f}억원<br>
+            <b>{abs(yield_effect):.1f}% {yield_word}</b><br><br>
+
+            <b>최종 변화</b><br>
+            {base["unit"]:.2f} → {final["unit"]:.2f}억원<br>
+            <b>{abs(total_effect):.1f}% {total_word}</b>
+            </div>""",
+            unsafe_allow_html=True
+        )
+
+    # 3. 왜 움직였는지 원인 경로 설명
+    st.subheader("③ 왜 이렇게 움직였는가?")
+
+    c1,c2=st.columns(2)
+    with c1:
+        st.markdown(
+            f"""<div class="interpret"><b>생산량 → 고정비 배부 효과</b><br><br>
+            Batch당 고정비<br>
+            <b>{f/bp:.2f} → {f/sp:.2f}억원</b><br><br>
+            생산량이 변하면 동일한 고정제조원가 <b>{f:.1f}억원</b>을 나누는 Batch 수가 달라집니다.
+            따라서 Batch당 고정비가 변하고 제조원가에 영향을 줍니다.
+            </div>""",
+            unsafe_allow_html=True
+        )
+    with c2:
+        st.markdown(
+            f"""<div class="interpret"><b>수율 → 정상품 확보 효과</b><br><br>
+            동일한 {sp} Batch 생산 시 정상품 환산 생산량<br>
+            <b>{prod_only["good"]:.1f} → {final["good"]:.1f} Batch</b><br><br>
+            수율이 변하면 같은 생산량에서 확보되는 정상품 수가 달라집니다.
+            총 제조원가를 나누는 정상품 환산 생산량이 달라져 정상품 기준 원가에 영향을 줍니다.
+            </div>""",
+            unsafe_allow_html=True
+        )
+
+    # 4. 민감도 표는 목적을 명확히 하여 축소 유지
+    st.subheader("④ 생산량 × 수율 조합별 원가를 한눈에 비교")
+
+    prod_points=sorted(set([
+        max(1,bp-100), bp,
+        int(round((bp+sp)/2)),
+        sp, min(CAP,sp+100)
+    ]))
+    prod_points=[x for x in prod_points if 1 <= x <= CAP]
+
+    yield_points=sorted(set([
+        max(1,int(by)-10),
+        int(by),
+        int(round((by+ay)/2)),
+        int(ay),
+        min(100,int(ay)+10)
+    ]))
+    yield_points=[y for y in yield_points if 1 <= y <= 100]
+
+    mat=pd.DataFrame(
+        index=[f"{y}%" for y in yield_points],
+        columns=[f"{p} Batch" for p in prod_points],
+        dtype=float
+    )
+    for y in yield_points:
+        for p in prod_points:
+            mat.loc[f"{y}%",f"{p} Batch"]=ym(p,y,f,v)["unit"]
+
+    st.dataframe(
+        mat.style.format("{:.2f}억원"),
+        use_container_width=True
+    )
+    st.caption(
+        "가로로 이동하면 생산량 변화 효과, 세로로 이동하면 수율 변화 효과를 볼 수 있습니다. "
+        "값이 낮을수록 정상품 환산 기준 제조원가가 낮다는 의미입니다."
+    )
+
+    # 5. 다음 분석으로 자연스럽게 연결
+    st.subheader("⑤ 생산량·수율만으로 설명되지 않는 원가는?")
+    st.markdown(
+        """<div class="warn"><b>생산량과 수율은 제조원가를 움직이는 일부 요인입니다.</b><br><br>
+        실제 원가 차이는 원재료 가격, 실제 사용량, 작업시간, 임률 등에서도 발생할 수 있습니다.<br><br>
+        따라서 다음 단계에서는 <b>가격차이·수량차이·능률차이·임률차이</b>를 분석하여
+        계획 대비 실제 원가가 왜 달라졌는지 확인할 수 있습니다.
+        </div>""",
+        unsafe_allow_html=True
+    )
+
+    st.link_button(
+        "➡️ 원가차이 분석 프로그램으로 이동",
+        "https://skbs24-cg7wj6aw3zbfv9b5rhefcu.streamlit.app/",
+        use_container_width=True
+    )
 
 with t5:
     st.header("05. Management Insight")
