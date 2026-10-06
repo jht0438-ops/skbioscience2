@@ -137,14 +137,17 @@ with t2:
 with t3:
     st.header("03. 수율 변화에 따른 제조원가 분석")
     intro("동일한 생산량에서도 실제 확보하는 정상품에 따라 정상품 환산 기준 원가가 달라질 수 있습니다.",
-          "`생산량 × 수율`을 정상품 환산 생산량으로 단순화하고 총 제조원가를 정상품 환산 생산량으로 나눕니다.",
+          "2번 탭에서 입력한 고정제조원가·Batch당 변동비·생산량 시나리오로 총 제조원가를 계산하고, `생산량 × 수율`을 정상품 환산 생산량으로 단순화하여 원가를 분석합니다.",
           "같은 생산량에서 실제 수율이 기준 수율보다 높거나 낮을 때 정상품 환산 생산량과 정상품 환산 기준 제조원가가 어떻게 달라지는지 확인합니다.")
     h,helpcol=st.columns([5,1]); h.subheader("수율 가정 입력")
     with helpcol:
         with st.popover("❓ 어떻게 사용하나요?"):
-            st.markdown("생산량과 기준 수율·실제 수율을 입력합니다. `생산량×수율=정상품 환산 생산량`, `총 제조원가÷정상품 환산 생산량=정상품 환산 기준 제조원가`로 계산합니다. 실제 수율은 공개된 실제 수치가 아니라 사용자가 입력하는 시나리오 값입니다.")
+            st.markdown("2번 탭에서 입력한 고정제조원가·Batch당 변동비·생산량 시나리오를 자동으로 불러옵니다. 총 제조원가는 `고정제조원가 + 생산량×Batch당 변동비`로 계산하며, `생산량×수율=정상품 환산 생산량`, `총 제조원가÷정상품 환산 생산량=정상품 환산 기준 제조원가`로 분석합니다. 실제 수율은 사용자가 입력하는 시나리오 값입니다.")
     c1,c2,c3=st.columns(3)
-    with c1: st.session_state.yield_prod=st.number_input("분석 생산량 (Batch)",1,CAP,int(st.session_state.yield_prod))
+    with c1:
+        st.session_state.yield_prod = st.session_state.scenario_prod
+        st.metric("분석 생산량 (Batch)", f"{st.session_state.yield_prod} Batch")
+        st.caption("※ 2번 탭의 생산량 시나리오를 자동으로 불러옵니다.")
     with c2: st.session_state.base_yield=st.number_input("기준 수율 (%)",1.0,100.0,float(st.session_state.base_yield),1.0)
     with c3:
         val=min(max(0.0,float(st.session_state.scenario_yield)),100.0)
@@ -156,6 +159,12 @@ with t3:
             step=1.0
         )
     yp,by,iy=st.session_state.yield_prod,st.session_state.base_yield,st.session_state.scenario_yield
+    linked_total_cost = st.session_state.fixed + yp * st.session_state.variable
+    st.info(
+        f"📌 2번 탭 연동 제조원가: 고정제조원가 {st.session_state.fixed:.1f}억원 "
+        f"+ 생산량 {yp} Batch × Batch당 변동비 {st.session_state.variable:.2f}억원 "
+        f"= 총 제조원가 {linked_total_cost:.1f}억원"
+    )
     y0,y1=ym(yp,by,st.session_state.fixed,st.session_state.variable),ym(yp,iy,st.session_state.fixed,st.session_state.variable)
     unit_change=pct(y1["unit"],y0["unit"]) if y0["unit"] else 0
     a,b,c,d=st.columns(4)
