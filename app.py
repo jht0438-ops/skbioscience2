@@ -126,26 +126,99 @@ with t2:
     b0,s=mfg(bp,f,v),mfg(p,f,v)
     unit_change=pct(s["unit"],b0["unit"]) if b0["unit"] else 0
 
-    a,b,c,d=st.columns(4)
-    a.metric("시나리오 생산량",f"{p} Batch",f"{p-bp:+} Batch vs 기준")
-    b.metric("시나리오 가동률",f"{s['util']:.1f}%",f"{s['util']-b0['util']:+.1f}%p vs 기준")
-    c.metric("미활용 생산능력",f"{s['unused']} Batch",f"{s['unused']-b0['unused']:+} Batch vs 기준")
-    d.metric("Batch당 제조원가",f"{s['unit']:.2f}억원",f"{unit_change:+.1f}% vs 기준")
+    # 결과 요약: 기준과 시나리오를 한 박스 안에서 비교
+    c1,c2,c3=st.columns(3)
 
+    with c1:
+        h,helpcol=st.columns([5,1])
+        h.markdown("#### 가동률")
+        with helpcol:
+            with st.popover("❓"):
+                st.markdown(
+                    "**가동률 = 생산량 ÷ 생산능력 × 100**\n\n"
+                    "본 시뮬레이터의 생산능력 분모는 **2025년 L HOUSE 공시 생산능력 575 Batch**로 고정합니다.\n\n"
+                    "기준 생산량과 시나리오 생산량 모두 동일한 575 Batch를 분모로 사용합니다."
+                )
+        st.metric("기준 가동률",f"{b0['util']:.1f}%")
+        st.metric("시나리오 가동률",f"{s['util']:.1f}%",f"{s['util']-b0['util']:+.1f}%p vs 기준")
+
+    with c2:
+        h,helpcol=st.columns([5,1])
+        h.markdown("#### 미활용 생산능력")
+        with helpcol:
+            with st.popover("❓"):
+                st.markdown(
+                    "**미활용 생산능력 = 2025년 생산능력 575 Batch - 입력 생산량**\n\n"
+                    "공시상 생산능력과 입력한 생산량의 단순 차이입니다. "
+                    "즉시 추가 생산할 수 있는 물량이나 실제 유휴설비 규모를 의미하지 않습니다."
+                )
+        st.metric("기준 미활용 생산능력",f"{b0['unused']} Batch")
+        st.metric("시나리오 미활용 생산능력",f"{s['unused']} Batch",f"{s['unused']-b0['unused']:+} Batch vs 기준")
+
+    with c3:
+        h,helpcol=st.columns([5,1])
+        h.markdown("#### Batch당 제조원가")
+        with helpcol:
+            with st.popover("❓"):
+                st.markdown(
+                    "**Batch당 제조원가 = 고정제조원가 ÷ 생산량 + Batch당 변동비**\n\n"
+                    "기준과 시나리오에 동일한 고정제조원가와 Batch당 변동비를 적용하여 "
+                    "생산량 변화에 따른 고정비 배부 효과를 비교합니다."
+                )
+        st.metric("기준 Batch당 제조원가",f"{b0['unit']:.2f}억원")
+        st.metric("시나리오 Batch당 제조원가",f"{s['unit']:.2f}억원",f"{unit_change:+.1f}% vs 기준")
+
+    # 그래프는 '전체 제조원가'가 아니라 생산량에 따라 변하는 Batch당 고정비를 중심으로 표시.
+    # 변동비는 생산량과 무관하게 Batch당 일정하므로 별도 기준선으로 표시.
     rng=np.arange(1,CAP+1)
-    curve=pd.DataFrame({"생산량":rng,"Batch당 제조원가":[mfg(x,f,v)["unit"] for x in rng]})
+    curve=pd.DataFrame({
+        "생산량":rng,
+        "Batch당 고정비":[mfg(x,f,v)["fixed_unit"] for x in rng]
+    })
+
     left,right=st.columns([2,1])
     with left:
-        fig=px.line(curve,x="생산량",y="Batch당 제조원가")
-        fig.add_scatter(x=[bp,p],y=[b0["unit"],s["unit"]],mode="markers+text",
-                        text=["기준 생산량","시나리오 생산량"],textposition="top center",name="선택값")
+        fig=px.line(curve,x="생산량",y="Batch당 고정비")
+        fig.add_hline(
+            y=v,
+            line_dash="dash",
+            annotation_text=f"Batch당 변동비 {v:.2f}억원",
+            annotation_position="top right"
+        )
+        fig.add_scatter(
+            x=[bp,p],
+            y=[b0["fixed_unit"],s["fixed_unit"]],
+            mode="markers+text",
+            text=[
+                f"기준 {bp} Batch<br>{b0['fixed_unit']:.2f}억원",
+                f"시나리오 {p} Batch<br>{s['fixed_unit']:.2f}억원"
+            ],
+            textposition="top center",
+            name="선택값"
+        )
+
+        # 두 선택값이 화면 하단에 붙지 않도록 y축을 선택 구간 중심으로 자동 확대
+        selected=[b0["fixed_unit"],s["fixed_unit"],v]
+        ymin=min(selected)
+        ymax=max(selected)
+        pad=max((ymax-ymin)*0.45, max(ymax,1)*0.08)
+        fig.update_yaxes(range=[max(0,ymin-pad), ymax+pad])
+        fig.update_layout(
+            xaxis_title="생산량 (Batch)",
+            yaxis_title="억원 / Batch",
+            title="생산량 변화에 따른 Batch당 고정비",
+            legend_title=""
+        )
         st.plotly_chart(fig,use_container_width=True)
+
     with right:
         st.markdown(f"""<div class="interpret"><b>💡 그래프 해석</b><br><br>
-        기준 생산량 <b>{bp} Batch</b>와 시나리오 생산량 <b>{p} Batch</b>를 비교합니다.<br><br>
-        Batch당 고정비는 <b>{b0["fixed_unit"]:.2f} → {s["fixed_unit"]:.2f}억원</b>,
-        Batch당 제조원가는 <b>{b0["unit"]:.2f} → {s["unit"]:.2f}억원</b>으로 변합니다.<br><br>
-        생산량 변화에 따라 동일한 고정비가 각 Batch에 배분되는 정도가 달라지는 효과입니다.</div>""",unsafe_allow_html=True)
+        이 그래프는 <b>생산량 변화에 직접 반응하는 Batch당 고정비</b>를 보여줍니다.<br><br>
+        기준 생산량 <b>{bp} Batch</b>: Batch당 고정비 <b>{b0["fixed_unit"]:.2f}억원</b><br>
+        시나리오 생산량 <b>{p} Batch</b>: Batch당 고정비 <b>{s["fixed_unit"]:.2f}억원</b><br><br>
+        Batch당 변동비 <b>{v:.2f}억원</b>은 생산량이 바뀌어도 Batch당 금액이 일정하다고 가정하므로 점선으로 별도 표시합니다.<br><br>
+        최종 Batch당 제조원가는 <b>Batch당 고정비 + Batch당 변동비</b>입니다.
+        </div>""",unsafe_allow_html=True)
 
     st.markdown('<div class="warn"><b>⚠ 분석 시 유의사항</b><br>기준 생산량과 시나리오 생산량은 사용자 입력값입니다. 실제 생산량 변화 시 추가 인력·유지보수·원재료 단가·제품 믹스 등에 따라 원가구조가 달라질 수 있습니다.</div>',unsafe_allow_html=True)
 
@@ -161,8 +234,11 @@ with t3:
     c1,c2,c3=st.columns(3)
     with c1:
         st.session_state.yield_prod = st.session_state.scenario_prod
-        st.metric("분석 생산량 (Batch)", f"{st.session_state.yield_prod} Batch")
-        st.caption("※ 2번 탭에서 사용자가 입력한 시나리오 생산량을 자동으로 불러옵니다.")
+        st.info(
+            f"**분석 생산량**\n\n"
+            f"### {st.session_state.yield_prod} Batch\n"
+            f"2번 탭에서 입력한 **시나리오 생산량을 자동으로 불러온 값**입니다."
+        )
     with c2: st.session_state.base_yield=st.number_input("기준 수율 (%)",1.0,100.0,float(st.session_state.base_yield),1.0)
     with c3:
         val=min(max(0.0,float(st.session_state.scenario_yield)),100.0)
