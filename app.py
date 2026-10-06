@@ -372,19 +372,23 @@ with t4:
         total_word="감소" if total_effect < 0 else "증가" if total_effect > 0 else "변화 없음"
 
         st.markdown(
-            f"""<div class="interpret"><b>💡 한눈에 보는 결과</b><br><br>
-            <b>생산량 변화 효과</b><br>
-            {base["unit"]:.2f} → {prod_only["unit"]:.2f}억원<br>
-            <b>{abs(prod_effect):.1f}% {prod_word}</b><br><br>
+            f"""
+            <div class="interpret">
+                <b>💡 한눈에 보는 결과</b><br><br>
 
-            <b>수율 변화 추가 효과</b><br>
-            {prod_only["unit"]:.2f} → {final["unit"]:.2f}억원<br>
-            <b>{abs(yield_effect):.1f}% {yield_word}</b><br><br>
+                <b>생산량 변화 효과</b><br>
+                {base["unit"]:.2f} → {prod_only["unit"]:.2f}억원<br>
+                <b>{abs(prod_effect):.1f}% {prod_word}</b><br><br>
 
-            <b>최종 변화</b><br>
-            {base["unit"]:.2f} → {final["unit"]:.2f}억원<br>
-            <b>{abs(total_effect):.1f}% {total_word}</b>
-            </div>""",
+                <b>수율 변화 추가 효과</b><br>
+                {prod_only["unit"]:.2f} → {final["unit"]:.2f}억원<br>
+                <b>{abs(yield_effect):.1f}% {yield_word}</b><br><br>
+
+                <b>최종 변화</b><br>
+                {base["unit"]:.2f} → {final["unit"]:.2f}억원<br>
+                <b>{abs(total_effect):.1f}% {total_word}</b>
+            </div>
+            """,
             unsafe_allow_html=True
         )
 
@@ -413,45 +417,8 @@ with t4:
             unsafe_allow_html=True
         )
 
-    # 4. 민감도 표는 목적을 명확히 하여 축소 유지
-    st.subheader("④ 생산량 × 수율 조합별 원가를 한눈에 비교")
-
-    prod_points=sorted(set([
-        max(1,bp-100), bp,
-        int(round((bp+sp)/2)),
-        sp, min(CAP,sp+100)
-    ]))
-    prod_points=[x for x in prod_points if 1 <= x <= CAP]
-
-    yield_points=sorted(set([
-        max(1,int(by)-10),
-        int(by),
-        int(round((by+ay)/2)),
-        int(ay),
-        min(100,int(ay)+10)
-    ]))
-    yield_points=[y for y in yield_points if 1 <= y <= 100]
-
-    mat=pd.DataFrame(
-        index=[f"{y}%" for y in yield_points],
-        columns=[f"{p} Batch" for p in prod_points],
-        dtype=float
-    )
-    for y in yield_points:
-        for p in prod_points:
-            mat.loc[f"{y}%",f"{p} Batch"]=ym(p,y,f,v)["unit"]
-
-    st.dataframe(
-        mat.style.format("{:.2f}억원"),
-        use_container_width=True
-    )
-    st.caption(
-        "가로로 이동하면 생산량 변화 효과, 세로로 이동하면 수율 변화 효과를 볼 수 있습니다. "
-        "값이 낮을수록 정상품 환산 기준 제조원가가 낮다는 의미입니다."
-    )
-
     # 5. 다음 분석으로 자연스럽게 연결
-    st.subheader("⑤ 생산량·수율만으로 설명되지 않는 원가는?")
+    st.subheader("④ 생산량·수율만으로 설명되지 않는 원가는?")
     st.markdown(
         """<div class="warn"><b>생산량과 수율은 제조원가를 움직이는 일부 요인입니다.</b><br><br>
         실제 원가 차이는 원재료 가격, 실제 사용량, 작업시간, 임률 등에서도 발생할 수 있습니다.<br><br>
