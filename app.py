@@ -138,41 +138,51 @@ with t3:
     st.header("03. 수율 변화에 따른 제조원가 분석")
     intro("동일한 생산량에서도 실제 확보하는 정상품에 따라 정상품 환산 기준 원가가 달라질 수 있습니다.",
           "`생산량 × 수율`을 정상품 환산 생산량으로 단순화하고 총 제조원가를 정상품 환산 생산량으로 나눕니다.",
-          "같은 생산량에서 수율 개선이 정상품 환산 생산량과 정상품 환산 기준 제조원가에 미치는 효과를 확인합니다.")
+          "같은 생산량에서 실제 수율이 기준 수율보다 높거나 낮을 때 정상품 환산 생산량과 정상품 환산 기준 제조원가가 어떻게 달라지는지 확인합니다.")
     h,helpcol=st.columns([5,1]); h.subheader("수율 가정 입력")
     with helpcol:
         with st.popover("❓ 어떻게 사용하나요?"):
-            st.markdown("생산량과 기준·개선 수율을 입력합니다. `생산량×수율=정상품 환산 생산량`, `총 제조원가÷정상품 환산 생산량=정상품 환산 기준 제조원가`로 계산합니다. 수율은 실제 공개 수치가 아닌 가정값입니다.")
+            st.markdown("생산량과 기준 수율·실제 수율을 입력합니다. `생산량×수율=정상품 환산 생산량`, `총 제조원가÷정상품 환산 생산량=정상품 환산 기준 제조원가`로 계산합니다. 실제 수율은 공개된 실제 수치가 아니라 사용자가 입력하는 시나리오 값입니다.")
     c1,c2,c3=st.columns(3)
     with c1: st.session_state.yield_prod=st.number_input("분석 생산량 (Batch)",1,CAP,int(st.session_state.yield_prod))
     with c2: st.session_state.base_yield=st.number_input("기준 수율 (%)",1.0,100.0,float(st.session_state.base_yield),1.0)
     with c3:
-        lo=float(st.session_state.base_yield); val=min(max(lo,float(st.session_state.scenario_yield)),100.0)
-        st.session_state.scenario_yield=st.slider("개선 수율 (%)",lo,100.0,val,1.0)
+        val=min(max(0.0,float(st.session_state.scenario_yield)),100.0)
+        st.session_state.scenario_yield=st.number_input(
+            "실제 수율 (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=val,
+            step=1.0
+        )
     yp,by,iy=st.session_state.yield_prod,st.session_state.base_yield,st.session_state.scenario_yield
     y0,y1=ym(yp,by,st.session_state.fixed,st.session_state.variable),ym(yp,iy,st.session_state.fixed,st.session_state.variable)
-    red=(y0["unit"]-y1["unit"])/y0["unit"]*100
+    unit_change=pct(y1["unit"],y0["unit"]) if y0["unit"] else 0
     a,b,c,d=st.columns(4)
-    a.metric("수율",f"{iy:.0f}%",f"{iy-by:+.0f}%p"); b.metric("정상품 환산 생산량",f"{y1['good']:.1f}",f"{y1['good']-y0['good']:+.1f} Batch")
-    c.metric("총 제조원가",f"{y1['total']:.1f}억원"); d.metric("정상품 환산 기준 제조원가",f"{y1['unit']:.2f}억원",f"-{red:.1f}%")
+    a.metric("실제 수율",f"{iy:.0f}%",f"{iy-by:+.0f}%p vs 기준"); b.metric("정상품 환산 생산량",f"{y1['good']:.1f}",f"{y1['good']-y0['good']:+.1f} Batch")
+    c.metric("총 제조원가",f"{y1['total']:.1f}억원"); d.metric("정상품 환산 기준 제조원가",f"{y1['unit']:.2f}억원",f"{unit_change:+.1f}%")
     yr=np.arange(max(50,int(by)-20),101)
     curve=pd.DataFrame({"수율":yr,"정상품 환산 기준 제조원가":[ym(yp,y,st.session_state.fixed,st.session_state.variable)["unit"] for y in yr]})
     left,right=st.columns([2,1])
     with left:
         fig=px.line(curve,x="수율",y="정상품 환산 기준 제조원가")
-        fig.add_scatter(x=[by,iy],y=[y0["unit"],y1["unit"]],mode="markers+text",text=["기준","개선"],textposition="top center",name="선택값")
+        fig.add_scatter(x=[by,iy],y=[y0["unit"],y1["unit"]],mode="markers+text",text=["기준","실제"],textposition="top center",name="선택값")
         st.plotly_chart(fig,use_container_width=True)
     with right:
+        yield_direction = "상승" if iy > by else "하락" if iy < by else "동일"
+        good_direction = "증가" if y1["good"] > y0["good"] else "감소" if y1["good"] < y0["good"] else "동일"
+        cost_direction = "증가" if y1["unit"] > y0["unit"] else "감소" if y1["unit"] < y0["unit"] else "변화 없음"
         st.markdown(f"""<div class="interpret"><b>💡 그래프 해석</b><br><br>
-        생산량은 <b>{yp} Batch로 동일</b>하지만 수율이 <b>{by:.0f}% → {iy:.0f}%</b>로 개선되면 정상품 환산 생산량은 <b>{y0["good"]:.1f} → {y1["good"]:.1f}</b>로 증가합니다.<br><br>
-        정상품 환산 기준 제조원가는 <b>{y0["unit"]:.2f} → {y1["unit"]:.2f}억원</b>으로 약 <b>{red:.1f}% 감소</b>합니다.<br><br>
-        <b>더 많이 생산해서가 아니라 같은 생산량에서 더 많은 정상품을 확보했기 때문입니다.</b></div>""",unsafe_allow_html=True)
+        생산량은 <b>{yp} Batch로 동일</b>하고, 실제 수율은 기준 수율 대비 <b>{by:.0f}% → {iy:.0f}% ({yield_direction})</b> 시나리오입니다.<br><br>
+        정상품 환산 생산량은 <b>{y0["good"]:.1f} → {y1["good"]:.1f}</b>로 {good_direction}하고,
+        정상품 환산 기준 제조원가는 <b>{y0["unit"]:.2f} → {y1["unit"]:.2f}억원</b>으로 {cost_direction}합니다.<br><br>
+        <b>실제 수율이 기준보다 낮아지는 경우까지 포함해 원가 영향을 확인할 수 있습니다.</b></div>""",unsafe_allow_html=True)
     st.markdown('<div class="warn"><b>⚠ 분석 시 유의사항</b><br>실제 바이오 생산에서는 공정별 수율·투입량·품질검사·폐기·재작업 등이 영향을 미칩니다. 본 모델은 직관적 분석을 위한 단순화 모델입니다.</div>',unsafe_allow_html=True)
 
 with t4:
     st.header("04. 생산량 × 수율 통합 시나리오")
     intro("실제 제조현장에서는 생산량과 수율이 동시에 변할 수 있으므로 두 효과를 함께 봅니다.",
-          "현재와 개선 시나리오를 비교하고 생산량 증가의 고정비 분산 효과와 수율 개선의 정상품 환산 생산량 증가 효과를 통합합니다.",
+          "현재 기준과 사용자 입력 시나리오를 비교하고 생산량 변화의 고정비 배분 효과와 실제 수율 변화의 정상품 환산 생산량 효과를 통합합니다.",
           "최종 정상품 환산 기준 제조원가 변화와 각 변화가 원가에 연결되는 경로를 확인합니다.")
     sp,by,sy=st.session_state.scenario_prod,st.session_state.base_yield,st.session_state.scenario_yield
     f,v=st.session_state.fixed,st.session_state.variable
@@ -186,12 +196,12 @@ with t4:
     st.subheader("단계별 원가 개선 효과")
     left,right=st.columns([2,1])
     with left:
-        sdf=pd.DataFrame({"단계":["현재","생산량 증가 후","수율 개선 후"],"정상품 환산 기준 제조원가":[ib["unit"],vo["unit"],isc["unit"]]})
+        sdf=pd.DataFrame({"단계":["현재","생산량 변경 후","실제 수율 반영 후"],"정상품 환산 기준 제조원가":[ib["unit"],vo["unit"],isc["unit"]]})
         st.plotly_chart(px.bar(sdf,x="단계",y="정상품 환산 기준 제조원가",text_auto=".2f"),use_container_width=True)
     with right:
         st.markdown(f"""<div class="interpret"><b>💡 그래프 해석</b><br><br>
         <b>{ib["unit"]:.2f} → {vo["unit"]:.2f} → {isc["unit"]:.2f}억원</b>으로 변합니다.<br><br>
-        생산량 증가는 고정비 분산, 수율 개선은 같은 생산량에서 더 많은 정상품을 확보하는 효과입니다.</div>""",unsafe_allow_html=True)
+        생산량 변화는 고정비 배분에 영향을 주고, 실제 수율 변화는 같은 생산량에서 확보되는 정상품 환산 생산량에 영향을 줍니다.</div>""",unsafe_allow_html=True)
     st.caption("※ 생산량을 먼저 변경하고 수율을 이후 변경하는 순서의 단계별 분석이며 정확한 기여율 분해를 의미하지 않습니다.")
     st.subheader("생산량 × 수율 시나리오 매트릭스")
     prods=[201,250,300,350,400,450,500,575]; yields=[70,75,80,85,90,95,100]
@@ -205,7 +215,7 @@ with t4:
     with right:
         st.markdown("""<div class="interpret"><b>💡 매트릭스 해석</b><br><br>
         <b>→ 가로:</b> 생산량 증가의 고정비 분산 효과<br><br>
-        <b>↓ 세로:</b> 수율 개선의 정상품 환산 생산량 증가 효과<br><br>
+        <b>↓ 세로:</b> 수율 변화에 따른 정상품 환산 생산량 변화<br><br>
         <b>↘ 오른쪽 아래:</b> 두 변화가 동시에 발생하는 시나리오</div>""",unsafe_allow_html=True)
 
 with t5:
@@ -215,14 +225,14 @@ with t5:
           "생산량·수율·제조원가를 연결하고 실제 실적이 목표와 다르면 생산량→수율→세부 원가 순으로 점검하는 체계를 제시합니다.")
     fb=ym(BASE,st.session_state.base_yield,st.session_state.fixed,st.session_state.variable)
     fs=ym(st.session_state.scenario_prod,st.session_state.scenario_yield,st.session_state.fixed,st.session_state.variable)
-    red=(fb["unit"]-fs["unit"])/fb["unit"]*100
+    final_unit_change=pct(fs["unit"],fb["unit"]) if fb["unit"] else 0
     summary=pd.DataFrame({
         "핵심지표":["생산량","가동률","미활용 생산능력","수율","정상품 환산 생산량","총 제조원가","정상품 환산 기준 제조원가"],
         "현재":[f"{BASE} Batch",f"{BASE_UTIL:.1f}%","374 Batch",f"{st.session_state.base_yield:.0f}%",f"{fb['good']:.1f}",f"{fb['total']:.1f}억원",f"{fb['unit']:.2f}억원"],
-        "목표 시나리오":[f"{st.session_state.scenario_prod} Batch",f"{st.session_state.scenario_prod/CAP*100:.1f}%",f"{CAP-st.session_state.scenario_prod} Batch",f"{st.session_state.scenario_yield:.0f}%",f"{fs['good']:.1f}",f"{fs['total']:.1f}억원",f"{fs['unit']:.2f}억원"]})
+        "사용자 시나리오":[f"{st.session_state.scenario_prod} Batch",f"{st.session_state.scenario_prod/CAP*100:.1f}%",f"{CAP-st.session_state.scenario_prod} Batch",f"{st.session_state.scenario_yield:.0f}%",f"{fs['good']:.1f}",f"{fs['total']:.1f}억원",f"{fs['unit']:.2f}억원"]})
     st.subheader("L HOUSE 원가관리 Summary"); st.dataframe(summary,use_container_width=True,hide_index=True)
     st.markdown(f"""<div class="insight"><b>📌 Executive Summary</b><br><br>
-    생산량 <b>{BASE} → {st.session_state.scenario_prod} Batch</b>, 수율 <b>{st.session_state.base_yield:.0f}% → {st.session_state.scenario_yield:.0f}%</b> 가정 시 정상품 환산 기준 제조원가는 <b>{fb["unit"]:.2f} → {fs["unit"]:.2f}억원</b>으로 약 <b>{red:.1f}% 감소</b>합니다.</div>""",unsafe_allow_html=True)
+    생산량 <b>{BASE} → {st.session_state.scenario_prod} Batch</b>, 기준 수율 <b>{st.session_state.base_yield:.0f}%</b> 대비 실제 수율 <b>{st.session_state.scenario_yield:.0f}%</b> 가정 시 정상품 환산 기준 제조원가는 <b>{fb["unit"]:.2f} → {fs["unit"]:.2f}억원</b>으로 <b>{final_unit_change:+.1f}%</b> 변합니다.</div>""",unsafe_allow_html=True)
     st.subheader("그래서 무엇을 관리해야 하나요?")
     a,b,c=st.columns(3)
     a.markdown("### ① 생산량\n얼마나 생산했는가?\n\n`계획 생산량 vs 실제 생산량`")
